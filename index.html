@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dark Matrix Team Members</title>
+<style>
+body { font-family: Arial; background: #111; color: #fff; padding: 20px; }
+input, select, button { padding: 10px; margin: 5px; border-radius: 5px; border: none; }
+button { background: #0f0; cursor: pointer; }
+.success { color: #0f0; margin: 10px 0; }
+.member { background: rgba(255,255,255,0.1); padding: 10px; margin: 10px 0; border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<h2>Dark Matrix Team Members</h2>
+
+<form id="memberForm">
+    <input type="text" id="name" placeholder="Name" required>
+    <input type="text" id="skills" placeholder="Skills" required>
+    <input type="text" id="whatsapp" placeholder="WhatsApp" required>
+    <select id="groupType" required>
+        <option value="">Select Group</option>
+        <option value="main">Main</option>
+        <option value="normal">Normal</option>
+    </select>
+    <select id="province" required>
+        <option value="">Select Province</option>
+        <option value="Western">Western</option>
+        <option value="Central">Central</option>
+        <option value="Southern">Southern</option>
+        <option value="Northern">Northern</option>
+        <option value="Eastern">Eastern</option>
+        <option value="North Western">North Western</option>
+        <option value="North Central">North Central</option>
+        <option value="Uva">Uva</option>
+        <option value="Sabaragamuwa">Sabaragamuwa</option>
+    </select>
+    <input type="file" id="photo" accept="image/*" required>
+    <button type="submit">Add Member</button>
+</form>
+
+<div class="success" id="successMsg"></div>
+<div id="membersList"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyAyF6qahTGFQQFpdx68nDycNbKl_-QEsjQ",
+  authDomain: "ishan-be438.firebaseapp.com",
+  databaseURL: "https://ishan-be438-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "ishan-be438",
+  storageBucket: "ishan-be438.appspot.com",
+  messagingSenderId: "55636164157",
+  appId: "1:55636164157:web:20a7b36fd202a0e69a7454"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// Telegram bot
+const TELEGRAM_BOT_TOKEN = "8266023841:AAF7WQf-CngjP6KVcBJS7AeJ8WdcSYxlA5I";
+const TELEGRAM_CHAT_ID = "1720283336";
+
+// Display member
+function displayMember(memberData, memberId){
+    const div = document.createElement("div");
+    div.className = "member";
+    div.id = "member-" + memberId;
+    div.innerHTML = `
+        <strong>${memberData.name}</strong><br>
+        Group: ${memberData.groupType}<br>
+        Province: ${memberData.province}<br>
+        Skills: ${memberData.skills}
+    `;
+    document.getElementById("membersList").appendChild(div);
+}
+
+// Load members
+db.ref("members").on("value", snapshot=>{
+    const membersList = document.getElementById("membersList");
+    membersList.innerHTML = "";
+    snapshot.forEach(child=>{
+        displayMember(child.val(), child.key);
+    });
+});
+
+// Send photo as file to Telegram
+async function sendPhotoFile(file, caption){
+    const formData = new FormData();
+    formData.append("chat_id", TELEGRAM_CHAT_ID);
+    formData.append("photo", file);
+    formData.append("caption", caption);
+
+    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendPhoto`, {
+        method: "POST",
+        body: formData
+    });
+}
+
+// Handle form
+document.getElementById("memberForm").addEventListener("submit", async e=>{
+    e.preventDefault();
+
+    const name = document.getElementById("name").value;
+    const skills = document.getElementById("skills").value;
+    const whatsapp = document.getElementById("whatsapp").value;
+    const groupType = document.getElementById("groupType").value;
+    const province = document.getElementById("province").value;
+    const photoFile = document.getElementById("photo").files[0];
+
+    if(!photoFile){ alert("Select a photo"); return; }
+
+    const memberId = Date.now();
+    const memberData = { name, skills, whatsapp, groupType, province };
+
+    // Save to Firebase
+    db.ref("members/"+memberId).set(memberData)
+      .then(()=>{
+          document.getElementById("successMsg").textContent = "Successfully Added!";
+          setTimeout(()=> document.getElementById("successMsg").textContent = "", 3000);
+          document.getElementById("memberForm").reset();
+
+          displayMember(memberData, memberId);
+
+          // Send photo to Telegram
+          const caption = `New Member:\nName: ${name}\nGroup: ${groupType}\nProvince: ${province}\nSkills: ${skills}\nWhatsApp: ${whatsapp}`;
+          sendPhotoFile(photoFile, caption);
+      })
+      .catch(err=> alert("Error: "+err));
+});
+</script>
+</body>
+  </html>
